@@ -4,8 +4,8 @@ from PyQt4 import QtCore, QtGui, uic
 import pandas as pd 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-qtCreatorFile = dir_path + "\\prototest2.ui" # Enter file here.
- 
+qtCreatorFile = dir_path + "\\GUI.ui" # Enter file here.
+#testing branch 
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
  
 class MyApp(QtGui.QMainWindow, Ui_MainWindow):

@@ -3,6 +3,8 @@ import os
 import subprocess
 from PyQt4 import QtCore, QtGui, uic
 import pandas as pd 
+#import interpretation as interp
+
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 qtCreatorFile = dir_path + "\\GUI.ui" # Enter file here.
@@ -21,6 +23,9 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
     location_list = []
     dataList = None
 
+    algo_data = {}
+    algo_tabs = {}
+
     def __init__(self):
         QtGui.QMainWindow.__init__(self)
         Ui_MainWindow.__init__(self)
@@ -32,15 +37,85 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         self.visulise_image.setPixmap(QtGui.QPixmap(dir_path + "\\duck.jpg"))
         self.dataList = datalistModel(self.data_list)
         self.setDataListContent()
-        self.setDataListContext()
+        self.setDataListContext()   
         
+        self.displayAlgorithms()
 
         #####################
         #Interaction methods run
         self.data_list.clicked.connect(self.data_item_clicked)
         self.drop_data_addData.triggered.connect(self.addData)
+        self.drop_algo_open.triggered.connect(self.addAlgo)
+        self.drop_algo_new.triggered.connect(self.newAlgo)
+
+    def newAlgo(self):
+        name, ok = QtGui.QInputDialog.getText(self, "New Algorithm", "File Name:")
+        if ok:
+            l = ["/", "<",">",":","\"","\\","|", "?", "*"] 
+            if [e for e in l if e in name] == None:
+                fName = name.split(".")[-1]
+                if fName != "py":
+                    name = fName[0]
+            else:
+                print("Invalid name")    
+        openfile = dir_path + "\\User Algorithms"
+        locations = pd.read_csv(dir_path + "\\algorithms.csv")
+        line = pd.DataFrame([[name, openfile]], columns = ['File_Name', 'File_Location'])
+        new = locations.append(line)
+        new.to_csv(dir_path + "\\algorithms.csv", index = False)
+        default = open(dir_path + "\\Sample Algorithms\\new.py", "r")
+        text = default.read()
+        default.close()
+        newFile = open(dir_path + '\\User Algorithms\\' + name + ".py", "w")
+        newFile.write(text)
+        newFile.close()
+        self.algo_data[name] = text   
+        self.ide_tabs.clear()
+        self.displayAlgorithms()
+
+
         
+    def displayAlgorithms(self):
+        #On boot of the program this will load the algorithms that were upon closing the progam last time, if none were present the default 'new' tab is loaded.
+        locations = pd.read_csv(dir_path + "\\algorithms.csv")
         
+        if locations.empty:
+            name = "new"
+            text = open(dir_path + "\\Sample Algorithms\\new.py", "r").read()
+            self.algo_data[name] = text
+        else:
+            s = locations.shape
+            for i in range(s[0]):
+                name = str(locations.iloc[i,0])
+                text = open(locations.iloc[i, 1], "r").read()
+                self.algo_data[name] = text
+        
+        for name, text in self.algo_data.items():
+            self.algo_tabs[name] = QtGui.QWidget()
+            layout = QtGui.QGridLayout()
+            editor = QtGui.QTextEdit()
+            editor.setText(text)
+            layout.addWidget(editor)
+            self.algo_tabs[name].setLayout(layout)
+            self.ide_tabs.addTab(self.algo_tabs[name], name)
+
+    def addAlgo(self):
+        openfile = QtGui.QFileDialog.getOpenFileName(self, filter = "Python files (*.py)")
+        openfile = openfile.replace("/", "\\")
+        algo_locations = pd.read_csv(dir_path + "\\algorithms.csv")
+        if openfile not in self.algo_data:
+            name  = openfile.split("\\")[-1]
+            name = name.split(".")[0]
+            line = pd.DataFrame([[name, openfile]], columns = ['File_Name', 'File_Location'])
+            new = algo_locations.append(line)
+            new.to_csv(dir_path + "\\algorithms.csv", index = False)
+            self.algo_data[name] = openfile
+        else:
+            print("Already in there") 
+            QtGui.QMessageBox.information(self, "!", "This algorithm is already loaded.")   
+        self.ide_tabs.clear()
+        self.displayAlgorithms()
+    
     def setDataListContext(self):
         self.data_list.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.data_list.connect(self.data_list, QtCore.SIGNAL("customContextMenuRequested(QPoint)"), self.data_list_context)
@@ -88,13 +163,10 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         self.setTableContent("")
         self.dataList.removeRow(item)
     
-
-
     def add_pathClicked(self, item):
         #Allows the user to re-add missing datasets that have been renamed/moved since last launching the platform
         self.addData()
         self.removedClicked(item)
-    
     
     def show_in_file_explorerClicked(self, item):
         #Brings up the file explorer leading to the file in question when 'show in file explorer' is selected in the context menu.
@@ -104,7 +176,6 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         string = 'explorer /select,"'+ location + '"'
         print(string)
         subprocess.Popen(string)
-
 
     def setDataListContent(self):
         #Reads dataSets.csv (contains all of the file names and paths)
@@ -129,7 +200,6 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         if location_error: 
             self.error_message("The bold highlighted datasets appear to have moved location. Please add them back.")
 
-
     def data_item_clicked(self, index):
         #when an item is selected in the datalist then the corresponding data is shown in the tableview
         for i in self.location_list:
@@ -142,23 +212,26 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
     def addData(self):
         #handles when the file explorer selects a new file.
         #adds to the storage CSV, the program array, and adds it to the listview model
-        openfile = QtGui.QFileDialog.getOpenFileName(self, filter = "CSV files (*.csv)")
-        openfile = openfile.replace("/", "\\")
-        data_locations = pd.read_csv(dir_path + "\\dataSets.csv")
-        location_list = data_locations['File_Location'].tolist()
-        
-        if openfile not in location_list:
-            name = openfile.split("\\")[-1]
-            name = name.split(".")[0]
-            line = pd.DataFrame([[name, openfile]], columns = ['File_Name', 'File_Location'])
-            new = data_locations.append(line)
-            new.to_csv(dir_path + '\\dataSets.csv', index=False)
-            self.location_list.append(data_set(name, pd.read_csv(openfile)))
-            self.dataList.addRow(name)
-        else:
-            print("Already in there") 
-            QtGui.QMessageBox.information(self, "!", "This CSV is already loaded.")   
-        
+        try:
+            openfile = QtGui.QFileDialog.getOpenFileName(self, filter = "CSV files (*.csv)")
+            openfile = openfile.replace("/", "\\")
+            data_locations = pd.read_csv(dir_path + "\\dataSets.csv")
+            location_list = data_locations['File_Location'].tolist()
+
+            if (openfile not in location_list) and (openfile[1] == ':'):
+                name = openfile.split("\\")[-1]
+                name = name.split(".")[0]
+                line = pd.DataFrame([[name, openfile]], columns = ['File_Name', 'File_Location'])
+                new = data_locations.append(line)
+                new.to_csv(dir_path + '\\dataSets.csv', index=False)
+                self.location_list.append(data_set(name, pd.read_csv(openfile)))
+                self.dataList.addRow(name)
+            else:
+                print("Already in there") 
+                QtGui.QMessageBox.information(self, "!", "This CSV is already loaded.")   
+        except:
+            print("file loading was canceled.")
+
     def setTableContent(self, text):
         #handles creating and displaying the table model when a new item is selected
         model = tableModel(text)
@@ -229,9 +302,6 @@ class tableModel(QtCore.QAbstractTableModel):
                 return str(self._data.iloc[index.row(), index.column()])
             return None    
 
-
-
- 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     window = MyApp()

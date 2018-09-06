@@ -1,5 +1,5 @@
 # Algorithmic-Trading-Prototype
-A proof of concept prototype of the trading platform for the Imperial College Algorithmic Trading Society. 
+A proof of concept prototype of the trading platform for the Imperial College Algorithmic Trading Society. Run the 'source.py' file to launch the platform. This requires that you have all relevant modules installed.
 
 This is being developed in python using PyQt4 for GUI design. 
 

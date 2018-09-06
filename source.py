@@ -3,7 +3,8 @@ import os
 import subprocess
 from PyQt4 import QtCore, QtGui, uic
 import pandas as pd 
-#import interpretation as interp
+import numpy as np
+from io import StringIO
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -47,6 +48,59 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         self.drop_data_addData.triggered.connect(self.addData)
         self.drop_algo_open.triggered.connect(self.addAlgo)
         self.drop_algo_new.triggered.connect(self.newAlgo)
+        self.drop_algo_run.triggered.connect(self.runAlgo)
+        self.drop_algo_save.triggered.connect(self.saveAlgo)
+
+    def runAlgo(self):
+        self.saveAlgo()
+        index = self.ide_tabs.currentIndex()
+        name = self.ide_tabs.tabText(index)
+
+        self.saveAlgo()
+        algolocations = pd.read_csv(dir_path + "\\algorithms.csv")
+        pd.set_option("display.max_colwidth", 10000)
+        location = algolocations.File_Location[algolocations.File_Name == name].to_string(index = False)
+        location = location + "\\" + name + ".py"
+        #pipe = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout
+        print("------------------this is the output--------------------")
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        my_stdout = sys.stdout = StringIO()
+        my_stderr = sys.stderr = StringIO()
+
+        exec(open(location).read())
+        
+        sys.stdout = self.old_stdout
+        sys.stderr = self.old_stderr
+        print("------------------this is the end of the output--------------------")
+        
+        print("starting reprint")
+        print (my_stdout.getvalue())
+        print(my_stderr.getvalue())
+
+        my_stdout.close()
+        my_stderr.close()
+
+        self.setDataListContent()
+
+    def saveAlgo(self, index = None, name = None):
+        #Saves the currently selected algorithm
+        #does not give a warning that the file is going to be overwritten
+        if name == None or index == None:
+            index = self.ide_tabs.currentIndex()
+            name = self.ide_tabs.tabText(index)
+        
+        text = self.ide_tabs.widget(index).layout().itemAt(0).widget().toPlainText()
+
+        algolocations = pd.read_csv(dir_path + "\\algorithms.csv")
+        pd.set_option("display.max_colwidth", 10000)
+        location = algolocations.File_Location[algolocations.File_Name == name].to_string(index = False)
+        location = location + "\\" + name + ".py"
+
+        writeFile = open(location, "w")
+        writeFile.write(text)
+        writeFile.close()
+        
 
     def newAlgo(self):
         name, ok = QtGui.QInputDialog.getText(self, "New Algorithm", "File Name:")
@@ -58,7 +112,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
                     name = fName[0]
             else:
                 print("Invalid name")    
-        openfile = dir_path + "\\User Algorithms"
+        openfile = dir_path + "\\User_Algorithms"
         locations = pd.read_csv(dir_path + "\\algorithms.csv")
         line = pd.DataFrame([[name, openfile]], columns = ['File_Name', 'File_Location'])
         new = locations.append(line)
@@ -66,7 +120,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         default = open(dir_path + "\\Sample Algorithms\\new.py", "r")
         text = default.read()
         default.close()
-        newFile = open(dir_path + '\\User Algorithms\\' + name + ".py", "w")
+        newFile = open(dir_path + '\\User_Algorithms\\' + name + ".py", "w")
         newFile.write(text)
         newFile.close()
         self.algo_data[name] = text   
@@ -78,16 +132,24 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
     def displayAlgorithms(self):
         #On boot of the program this will load the algorithms that were upon closing the progam last time, if none were present the default 'new' tab is loaded.
         locations = pd.read_csv(dir_path + "\\algorithms.csv")
+        locations.replace('', np.nan, inplace = True)
+        locations.dropna(inplace = True)
         
         if locations.empty:
             name = "new"
-            text = open(dir_path + "\\Sample Algorithms\\new.py", "r").read()
+            nFile = open(dir_path + "\\Sample Algorithms\\new.py", "r")
+            text = nFile.read()
+            nFile.close()
             self.algo_data[name] = text
         else:
             s = locations.shape
             for i in range(s[0]):
                 name = str(locations.iloc[i,0])
-                text = open(locations.iloc[i, 1], "r").read()
+                print(locations.iloc[i, 1])
+                print(name)
+                nFile = open(locations.iloc[i, 1] + "\\" + name + ".py", "r")
+                text = nFile.read()
+                nFile.close()
                 self.algo_data[name] = text
         
         for name, text in self.algo_data.items():
@@ -150,8 +212,6 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 
     def removedClicked(self, item):
         #removes the selected dataset, removes reference to it from all relevant places
-        
-        print(item)
         for i in self.location_list:
             if i.name == item:
                 self.location_list.remove(i)
@@ -174,7 +234,6 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         pd.set_option("display.max_colwidth", 10000)
         location = data_locations.File_Location[data_locations.File_Name == item].to_string(index = False)
         string = 'explorer /select,"'+ location + '"'
-        print(string)
         subprocess.Popen(string)
 
     def setDataListContent(self):
@@ -184,6 +243,8 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         data_locations = pd.read_csv(dir_path + "\\dataSets.csv")
         size = data_locations.shape
         location_error = []
+        self.dataList.clear()
+        self.location_list = []
         for i in range (size[0]):
             name = str(data_locations.iloc[i, 0])
             try:
@@ -191,8 +252,9 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
                 self.location_list.append(data_set(name, text))
             except:
                 location_error.append(name)
+        
         for p in self.location_list:
-            print(type(p.name))
+            print(p.name)
             self.dataList.addRow(p.name)
         for p in location_error:
             self.dataList.addBoldrow(p)
@@ -282,7 +344,7 @@ class datalistModel():
 
     def clear(self):
         #clears everything in the model
-        self.model.removeRow(0, self.model.rowCount())
+        self.model.removeRows(0, self.model.rowCount())
 
 class tableModel(QtCore.QAbstractTableModel):
     #class produces a model for the input pandas dataframe
@@ -301,6 +363,7 @@ class tableModel(QtCore.QAbstractTableModel):
             if role == QtCore.Qt.DisplayRole:
                 return str(self._data.iloc[index.row(), index.column()])
             return None    
+
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)

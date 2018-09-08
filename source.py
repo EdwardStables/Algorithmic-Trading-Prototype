@@ -2,13 +2,13 @@ import sys
 import os
 import subprocess
 from PyQt4 import QtCore, QtGui, uic
-import pandas as pd 
+import pandas as pd
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 qtCreatorFile = dir_path + "\\GUI.ui" # Enter file here.
-#testing branch 
+#testing branch
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
- 
+
 
 ######################################################################
 #                                                                    #
@@ -25,22 +25,22 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         QtGui.QMainWindow.__init__(self)
         Ui_MainWindow.__init__(self)
         self.setupUi(self)
-        
+
         #####################
-        #Initialisation methods run       
+        #Initialisation methods run
         #self.showMaximized()
         self.visulise_image.setPixmap(QtGui.QPixmap(dir_path + "\\duck.jpg"))
         self.dataList = datalistModel(self.data_list)
         self.setDataListContent()
         self.setDataListContext()
-        
+
 
         #####################
         #Interaction methods run
         self.data_list.clicked.connect(self.data_item_clicked)
         self.drop_data_addData.triggered.connect(self.addData)
-        
-        
+
+
     def setDataListContext(self):
         self.data_list.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.data_list.connect(self.data_list, QtCore.SIGNAL("customContextMenuRequested(QPoint)"), self.data_list_context)
@@ -68,34 +68,34 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         else:
             add_path.setEnabled(True)
             show_in_file_explorer.setEnabled(False)
-        
+
         parentPosition = self.data_list.mapToGlobal(QtCore.QPoint(0,0))
         self.listMenu.move(parentPosition + QPos)
         self.listMenu.show()
 
     def removedClicked(self, item):
         #removes the selected dataset, removes reference to it from all relevant places
-        
+
         print(item)
         for i in self.location_list:
             if i.name == item:
                 self.location_list.remove(i)
                 break
-                
+
         data_locations = pd.read_csv(dir_path + "\\dataSets.csv", index_col = False)
         data_locations = data_locations[data_locations.File_Name != item]
         data_locations.to_csv(dir_path + '\\dataSets.csv', index=False)
         self.setTableContent("")
         self.dataList.removeRow(item)
-    
+
 
 
     def add_pathClicked(self, item):
         #Allows the user to re-add missing datasets that have been renamed/moved since last launching the platform
         self.addData()
         self.removedClicked(item)
-    
-    
+
+
     def show_in_file_explorerClicked(self, item):
         #Brings up the file explorer leading to the file in question when 'show in file explorer' is selected in the context menu.
         data_locations = pd.read_csv(dir_path + "\\dataSets.csv", index_col = False)
@@ -125,8 +125,8 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
             self.dataList.addRow(p.name)
         for p in location_error:
             self.dataList.addBoldrow(p)
-        
-        if location_error: 
+
+        if location_error:
             self.error_message("The bold highlighted datasets appear to have moved location. Please add them back.")
 
 
@@ -146,7 +146,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         openfile = openfile.replace("/", "\\")
         data_locations = pd.read_csv(dir_path + "\\dataSets.csv")
         location_list = data_locations['File_Location'].tolist()
-        
+
         if openfile not in location_list:
             name = openfile.split("\\")[-1]
             name = name.split(".")[0]
@@ -156,9 +156,9 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
             self.location_list.append(data_set(name, pd.read_csv(openfile)))
             self.dataList.addRow(name)
         else:
-            print("Already in there") 
-            QtGui.QMessageBox.information(self, "!", "This CSV is already loaded.")   
-        
+            print("Already in there")
+            QtGui.QMessageBox.information(self, "!", "This CSV is already loaded.")
+
     def setTableContent(self, text):
         #handles creating and displaying the table model when a new item is selected
         model = tableModel(text)
@@ -181,7 +181,7 @@ class data_set():
         self.text=text
 
 class datalistModel():
-    #a simple model used for the listView of data titles. 
+    #a simple model used for the listView of data titles.
     model = None
     data_list = None
 
@@ -190,12 +190,12 @@ class datalistModel():
         self.data_list = data_list
         self.model = QtGui.QStandardItemModel()
         self.data_list.setModel(self.model)
-    
+
     def addRow(self, item):
         #adds the selected row to the model
         item = QtGui.QStandardItem(item)
         self.model.appendRow(item)
-    
+
     def addBoldrow(self, item):
         item = QtGui.QStandardItem(item)
         f = item.font()
@@ -219,19 +219,19 @@ class tableModel(QtCore.QAbstractTableModel):
 
     def rowCount(self, parent=None):
         return self._data.shape[0]
-    
+
     def columnCount(self, parent=None):
         return self._data.shape[1]
-    
+
     def data(self, index, role=QtCore.Qt.DisplayRole):
         if index.isValid():
             if role == QtCore.Qt.DisplayRole:
                 return str(self._data.iloc[index.row(), index.column()])
-            return None    
+            return None
 
 
 
- 
+
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     window = MyApp()

@@ -52,34 +52,21 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
         self.drop_algo_save.triggered.connect(self.saveAlgo)
 
     def runAlgo(self):
-        self.saveAlgo()
         index = self.ide_tabs.currentIndex()
         name = self.ide_tabs.tabText(index)
 
-        self.saveAlgo()
+        self.saveAlgo(index, name)
+
         algolocations = pd.read_csv(dir_path + "\\algorithms.csv")
         pd.set_option("display.max_colwidth", 10000)
         location = algolocations.File_Location[algolocations.File_Name == name].to_string(index = False)
         location = location + "\\" + name + ".py"
+        
         #pipe = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout
         print("------------------this is the output--------------------")
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        my_stdout = sys.stdout = StringIO()
-        my_stderr = sys.stderr = StringIO()
-
         exec(open(location).read())
-        
-        sys.stdout = self.old_stdout
-        sys.stderr = self.old_stderr
+        print("finished")
         print("------------------this is the end of the output--------------------")
-        
-        print("starting reprint")
-        print (my_stdout.getvalue())
-        print(my_stderr.getvalue())
-
-        my_stdout.close()
-        my_stderr.close()
 
         self.setDataListContent()
 
@@ -94,6 +81,7 @@ class MyApp(QtGui.QMainWindow, Ui_MainWindow):
 
         algolocations = pd.read_csv(dir_path + "\\algorithms.csv")
         pd.set_option("display.max_colwidth", 10000)
+        print(algolocations)
         location = algolocations.File_Location[algolocations.File_Name == name].to_string(index = False)
         location = location + "\\" + name + ".py"
 

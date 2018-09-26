@@ -6,7 +6,11 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 print(dir_path)
 data_list = {}
 
+def toPrint():
+    pass
+
 def getDataList():
+    #Returns all of the datasets currently used in the program
     _updateData()
     name_list = []
     for i in data_list:
@@ -14,6 +18,7 @@ def getDataList():
     return name_list
 
 def getData(name = None):
+    #if 'name' is the name of a dataset currently in the program then that dataset will be returned
     _updateData()
     dataSet = None
     if name in data_list:
@@ -21,6 +26,7 @@ def getData(name = None):
     return dataSet
 
 def setData(name, dataSet):
+    #saves the passed dataset to the program, overwrites if it has the same name as an existing one, otherwise saves as new
     _updateData()
 
     if name in data_list:
